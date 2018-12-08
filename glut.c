@@ -1,3 +1,7 @@
+/**
+ * GLUT example that I've found somewhere centuries ago
+ */
+
 #include <GL/glew.h>
 #include <GL/glut.h>
 #include <GL/gl.h>

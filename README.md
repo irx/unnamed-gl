@@ -1,2 +1,3 @@
 # unnamed-gl
-OpenGL sandbox
+
+Personal dumpster for OpenGL experiments and that kind of stuff
