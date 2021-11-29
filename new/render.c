@@ -171,8 +171,6 @@ gc_create_sprite(Gc *gc, const Image *img)
 	return gc->nsprites++;
 }
 
-// DEBUG
-
 void
 gc_draw(Gc *gc, int x, int y, int sprite)
 {

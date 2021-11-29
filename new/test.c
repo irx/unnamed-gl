@@ -9,8 +9,6 @@
  * Test rendering images
  */
 
-//#include <GL/glew.h>
-//#include <GLFW/glfw3.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,26 +20,6 @@
 static int mypos = 0;
 static int myposy = 0;
 static int myposinc = 0;
-//void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
-//void gc_bind_input(Gc *, void (*)(Input));
-
-/*
-void
-gc_bind_input(Gc *gc, void (*hnd)(Input))
-{
-	glfwSetKeyCallback(gc_get_window(gc), key_callback);
-	if (key == GLFW_KEY_D && action == GLFW_PRESS)
-		myposinc = 1;
-	if (key == GLFW_KEY_D && action == GLFW_RELEASE)
-		myposinc = 0;
-	if (key == GLFW_KEY_A && action == GLFW_PRESS)
-		myposinc = -1;
-	if (key == GLFW_KEY_A && action == GLFW_RELEASE)
-		myposinc = 0;
-	if (key == GLFW_KEY_E && action == GLFW_REPEAT)
-		++mypos;
-}
-*/
 
 int
 main(void)
@@ -85,18 +63,9 @@ main(void)
 	free(img->d);
 	free(img);
 
-	//glfwSetKeyCallback(gc_get_window(gc), key_callback);
 	gc_bind_input(gc);
 
 	while (gc_alive(gc)) {
-		/*
-		glfwGetFramebufferSize(gc_get_window(gc), &width, &height);
-		printf("\r%d x %d", width, height);
-		fflush(stdout);
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		glOrtho(0.0f, width, height, 0.0f, 0.0f, 1.0f);
-		*/
 		user_input = gc_poll_input();
 		mypos += (int)user_input.dx;
 		myposy -= (int)user_input.dy;
@@ -116,21 +85,3 @@ main(void)
 	putchar('\n');
 	return 0;
 }
-
-
-/*
-void
-key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
-{
-	if (key == GLFW_KEY_D && action == GLFW_PRESS)
-		myposinc = 1;
-	if (key == GLFW_KEY_D && action == GLFW_RELEASE)
-		myposinc = 0;
-	if (key == GLFW_KEY_A && action == GLFW_PRESS)
-		myposinc = -1;
-	if (key == GLFW_KEY_A && action == GLFW_RELEASE)
-		myposinc = 0;
-	if (key == GLFW_KEY_E && action == GLFW_REPEAT)
-		++mypos;
-}
-*/

@@ -22,7 +22,6 @@ int gc_create_sprite(Gc *, const Image *);
 void gc_draw(Gc *, int, int, int);
 void gc_clear(Gc *);
 void gc_commit(Gc *);
-//GLFWwindow * gc_get_window(const Gc *);
 int gc_alive(const Gc *);
 void gc_select(const Gc *);
 void gc_bind_input(const Gc *);
