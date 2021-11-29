@@ -17,73 +17,75 @@
 #include <math.h>
 
 #include "../ff/ff.h"
+#include "render.h"
 
 #define SPRITE_LIMIT 512
-
 
 /* SHADERS */
 static const char *vert_shader_src = 
 	"#version 120\n"
 	"attribute vec2 position;\n"
-	"attribute vec3 colour;\n"
 	"attribute vec2 texture;\n"
-	"uniform vec2 disp;\n"
 	"uniform mat4 tfm;\n"
 	"varying vec2 Texcoord;\n"
-	"varying vec3 Colour;\n"
 	"void main()\n"
 	"{\n"
 	"	Texcoord = texture;\n"
-	"	Colour = colour;\n"
-	"	gl_Position = vec4(position.x+disp.x, position.y+disp.y, 1.0, 1.0) * tfm;\n"
+	"	gl_Position = vec4(position.x, position.y, 1.0, 1.0) * tfm;\n"
 	"}\n";
 
 static const char *frag_shader_src =
 	"#version 120\n"
-	//"out vec4 outColor;\n"
-	"uniform vec3 color;\n"
-	"varying vec3 Colour;\n"
 	"varying vec2 Texcoord;\n"
 	"uniform sampler2D tex;\n"
 	"void main()\n"
 	"{\n"
-	//"	outColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
-	"	gl_FragColor = texture2D(tex, Texcoord);// * vec4(Colour+color, 1.0);\n"
-	"	//if (gl_FragColor.x + gl_FragColor.y + gl_FragColor.z > 2.7)\n"
-	"		//gl_FragColor.a = 0.0;\n"
+	"	gl_FragColor = texture2D(tex, Texcoord);\n"
 	"}\n";
 
-typedef struct {
+struct gc {
 	float *vert;
 	GLuint vao, vbo, vertex_shader, fragment_shader, prog,
-	       texture, position, colour, pos, col, tfm;
+	       texture, position, tfm;
 	char *v_shd_src, *f_shd_src;
 	GLuint sprites[SPRITE_LIMIT];
 	size_t nsprites, spritew[SPRITE_LIMIT], spriteh[SPRITE_LIMIT];
 	int w, h;
 	GLFWwindow *window;
-} Gc;
-
-float vert[] = {
-	 0.1f,  0.1f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
-	 0.1f, -0.1f,  1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
-	-0.1f, -0.1f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f,
-	-0.1f,  0.1f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f
 };
+
+static void key_callback(GLFWwindow *, int, int, int, int);
+
+static Input global_input;
+
+static float vert[] = {
+	 0.1f,  0.1f,  1.0f,  0.0f,
+	 0.1f, -0.1f,  1.0f,  1.0f,
+	-0.1f, -0.1f,  0.0f,  1.0f,
+	-0.1f,  0.1f,  0.0f,  0.0f
+};
+
+Gc *
+gc_new(void)
+{
+	return malloc(sizeof(Gc));
+}
 
 int
 gc_init(Gc *gc)
 {
-	/*
-	GLFWwindow *window;
-	GLuint vao, vbo, vertex_shader, fragment_shader, prog,
-	       position, colour, pos, col;
-	*/
 	char err[512];
 
 	gc->nsprites = 0;
 	gc->w = 640;
 	gc->h = 480;
+
+	gc->vert = malloc(sizeof(vert));
+	if (gc->vert == NULL)
+		return -1;
+	memcpy(gc->vert, vert, sizeof(vert));
+	gc->v_shd_src = strdup(vert_shader_src);
+	gc->f_shd_src = strdup(frag_shader_src);
 
 	if (!glfwInit())
 		return -1;
@@ -114,8 +116,6 @@ gc_init(Gc *gc)
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glClearColor(1.f, 1.f, 1.f, 1.f);
-	glOrtho(0, 640, 0, 480, -1, 1);
-	glViewport(0, 0, 640, 480);
 
 	gc->vertex_shader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(gc->vertex_shader, 1, &vert_shader_src, NULL);
@@ -132,22 +132,16 @@ gc_init(Gc *gc)
 	gc->prog = glCreateProgram();
 	glAttachShader(gc->prog, gc->vertex_shader);
 	glAttachShader(gc->prog, gc->fragment_shader);
-	//glBindFragDataLocation(prog, 0, "outColor");
 	glLinkProgram(gc->prog);
 	glUseProgram(gc->prog);
 
 	gc->position = glGetAttribLocation(gc->prog, "position");
-	gc->colour = glGetAttribLocation(gc->prog, "colour");
 	gc->texture = glGetAttribLocation(gc->prog, "texture");
-	glVertexAttribPointer(gc->position, 2, GL_FLOAT, GL_FALSE, 7*sizeof(float), 0);
-	glVertexAttribPointer(gc->colour, 3, GL_FLOAT, GL_FALSE, 7*sizeof(float), (void *)(2*sizeof(float)));
-	glVertexAttribPointer(gc->texture, 2, GL_FLOAT, GL_FALSE, 7*sizeof(float), (void *)(5*sizeof(float)));
+	glVertexAttribPointer(gc->position, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), 0);
+	glVertexAttribPointer(gc->texture, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void *)(2*sizeof(float)));
 	glEnableVertexAttribArray(gc->position);
-	glEnableVertexAttribArray(gc->colour);
 	glEnableVertexAttribArray(gc->texture);
 
-	gc->col = glGetUniformLocation(gc->prog, "color");
-	gc->pos = glGetUniformLocation(gc->prog, "disp");
 	gc->tfm = glGetUniformLocation(gc->prog, "tfm");
 
 	return 0;
@@ -180,27 +174,22 @@ gc_create_sprite(Gc *gc, const Image *img)
 // DEBUG
 
 void
-gc_draw(Gc *gc, int x, int y, int col, int sprite)
+gc_draw(Gc *gc, int x, int y, int sprite)
 {
-	float fx, fy;
 	float tfm[] = {
 		 1.0f,  0.0f,  0.0f,  0.0f,
 		 0.0f,  1.0f,  0.0f,  0.0f,
 		 0.0f,  0.0f,  1.0f,  0.0f,
 		 0.0f,  0.0f,  0.0f,  1.0f
 	};
-	fx = (float)x/100.f;
-	fy = (float)y/100.f;
 	/* translate */
-	tfm[3] = fx;
-	tfm[7] = fy;
+	tfm[3] = (float)x/100.f;
+	tfm[7] = (float)y/100.f;
 	/* scale */
 	tfm[0] = (float)gc->spritew[sprite]/(float)gc->w;
 	tfm[5] = (float)gc->spriteh[sprite]/(float)gc->h;
 	glUseProgram(gc->prog);
 	glBindTexture(GL_TEXTURE_2D, gc->sprites[sprite]);
-	//glUniform3f(gc->col, 0.0f, (float)sin(col/100), 0.0f);
-	//glUniform2f(gc->pos, fx, fy);
 	glUniformMatrix4fv(gc->tfm, 1, GL_FALSE, tfm);
 	glDrawArrays(GL_QUADS, 0, 4);
 }
@@ -218,59 +207,54 @@ gc_commit(Gc *gc)
 	glfwPollEvents();
 }
 
-int
-main(void)
+GLFWwindow *
+gc_get_window(const Gc *gc)
 {
-	Image *img;
-	int cat, tux;
-	int width, height;
-	int iter = 0;
-	int pos = 0;
-	Gc *gc = malloc(sizeof(Gc));
-	if (gc == NULL)
-		return 1;
+	return gc->window;
+}
 
-	gc->vert = malloc(sizeof(vert));
-	if (gc->vert == NULL)
-		return 1;
-	memcpy(gc->vert, vert, sizeof(vert));
-	gc->v_shd_src = strdup(vert_shader_src);
-	gc->f_shd_src = strdup(frag_shader_src);
+int
+gc_alive(const Gc *gc)
+{
+	return !glfwWindowShouldClose(gc->window);
+}
 
-	gc_init(gc);
+void
+gc_select(const Gc *gc)
+{
+	glfwMakeContextCurrent(gc->window);
+}
 
-	img = ff_load("../ff/test.ff");
-	if (img < 0) {
-		perror("error loading sprite");
-		return 1;
-	}
-	cat = gc_create_sprite(gc, img);
-	free(img->d);
-	free(img);
+void
+gc_bind_input(const Gc *gc)
+{
+	glfwSetKeyCallback(gc_get_window(gc), key_callback);
+}
 
-	img = ff_load("./tux.ff");
-	if (img < 0) {
-		perror("error loading sprite");
-		return 1;
-	}
-	tux = gc_create_sprite(gc, img);
+Input
+gc_poll_input(void)
+{
+	glfwPollEvents();
+	return global_input;
+}
 
-	printf("%f %f\n", gc->vert[1], gc->vert[2]);
-
-	while (!glfwWindowShouldClose(gc->window)) {
-		glfwGetFramebufferSize(gc->window, &width, &height);
-		printf("\r%d x %d", width, height);
-		fflush(stdout);
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		glOrtho(0.0f, width, height, 0.0f, 0.0f, 1.0f);
-		gc_clear(gc);
-		gc_draw(gc, 15, 0, iter++, cat);
-		gc_draw(gc, 5, 10, iter, tux);
-		gc_draw(gc, 100*cos((float)iter/20.f), 100*sin((float)iter/20.f), iter, cat);
-		gc_draw(gc, -100, ++pos, iter, cat);
-		gc_commit(gc);
-	}
-	putchar('\n');
-	return 0;
+static void
+key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+	if (key == GLFW_KEY_D && action == GLFW_PRESS)
+		global_input.dx = 1.f;
+	if (key == GLFW_KEY_D && action == GLFW_RELEASE)
+		global_input.dx = 0.f;
+	if (key == GLFW_KEY_A && action == GLFW_PRESS)
+		global_input.dx = -1.f;
+	if (key == GLFW_KEY_A && action == GLFW_RELEASE)
+		global_input.dx = 0.f;
+	if (key == GLFW_KEY_W && action == GLFW_PRESS)
+		global_input.dy = -1.f;
+	if (key == GLFW_KEY_W && action == GLFW_RELEASE)
+		global_input.dy = 0.f;
+	if (key == GLFW_KEY_S && action == GLFW_PRESS)
+		global_input.dy = 1.f;
+	if (key == GLFW_KEY_S && action == GLFW_RELEASE)
+		global_input.dy = 0.f;
 }
